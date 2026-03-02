@@ -1,0 +1,31 @@
+export const FILE_TYPE_MAP: Record<string, string> = {
+  'image/jpeg': 'IMAGE',
+  'image/png': 'IMAGE',
+  'image/gif': 'IMAGE',
+  'image/webp': 'IMAGE',
+  'video/mp4': 'VIDEO',
+  'video/mpeg': 'VIDEO',
+  'video/quicktime': 'VIDEO',
+  'audio/mpeg': 'AUDIO',
+  'audio/wav': 'AUDIO',
+  'audio/ogg': 'AUDIO',
+  'application/pdf': 'PDF',
+}
+
+export const ALLOWED_MIME_TYPES = Object.keys(FILE_TYPE_MAP)
+
+export const ERROR_CODES = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  FORBIDDEN: 'FORBIDDEN',
+  NOT_FOUND: 'NOT_FOUND',
+  DUPLICATE_ENTRY: 'DUPLICATE_ENTRY',
+  FILE_TYPE_NOT_ALLOWED: 'FILE_TYPE_NOT_ALLOWED',
+  FILE_TOO_LARGE: 'FILE_TOO_LARGE',
+  TOTAL_FILE_LIMIT_REACHED: 'TOTAL_FILE_LIMIT_REACHED',
+  FOLDER_FILE_LIMIT_REACHED: 'FOLDER_FILE_LIMIT_REACHED',
+  FOLDER_LIMIT_REACHED: 'FOLDER_LIMIT_REACHED',
+  NESTING_LIMIT_REACHED: 'NESTING_LIMIT_REACHED',
+  PACKAGE_NOT_FOUND: 'PACKAGE_NOT_FOUND',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const
