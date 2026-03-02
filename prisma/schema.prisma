@@ -12,3 +12,172 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum FileType {
+  IMAGE
+  VIDEO
+  PDF
+  AUDIO
+}
+
+// ─────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────
+
+model User {
+  id           String  @id @default(uuid())
+  fullName     String  @map("full_name")
+  email        String  @unique
+  passwordHash String  @map("password_hash")
+  role         Role    @default(USER)
+  isActive     Boolean @default(true) @map("is_active")
+
+  passwordResetToken   String?   @unique @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  subscriptions UserSubscription[]
+  folders       Folder[]
+  files         File[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTION PACKAGES
+// ─────────────────────────────────────────────
+
+model SubscriptionPackage {
+  id              String @id @default(uuid())
+  name            String @unique
+  maxFolders      Int    @map("max_folders")
+  maxNestingLevel Int    @map("max_nesting_level")
+  maxFileSizeMb   Int    @map("max_file_size_mb")
+  totalFileLimit  Int    @map("total_file_limit")
+  filesPerFolder  Int    @map("files_per_folder")
+
+  // JSON array: ["IMAGE", "VIDEO", "PDF", "AUDIO"]
+  allowedFileTypes Json @map("allowed_file_types")
+
+  // NULL = never expires (Free tier)
+  // Number = days until expiry after selection
+  durationDays Int? @map("duration_days")
+
+  isActive  Boolean @default(true) @map("is_active")
+  isDefault Boolean @default(false) @map("is_default")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  subscriptions UserSubscription[]
+
+  @@map("subscription_packages")
+}
+
+// ─────────────────────────────────────────────
+// USER SUBSCRIPTIONS (append-only history)
+// ─────────────────────────────────────────────
+
+model UserSubscription {
+  id String @id @default(uuid())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  package   SubscriptionPackage @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  packageId String              @map("package_id")
+
+  startedAt DateTime  @default(now()) @map("started_at")
+  expiresAt DateTime? @map("expires_at")
+
+  // Only ONE row per user is true at a time
+  // Enforced at application level in a transaction
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Most queried combination in the entire app
+  @@index([userId, isActive])
+  @@map("user_subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// FOLDERS
+// ─────────────────────────────────────────────
+
+model Folder {
+  id   String @id @default(uuid())
+  name String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  // NULL = root level folder
+  parent   Folder? @relation("FolderChildren", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parentId String? @map("parent_id")
+
+  // Computed server-side on creation. Root = 1, each level adds 1.
+  // Never accepted from client input.
+  depthLevel Int @default(1) @map("depth_level")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  children Folder[] @relation("FolderChildren")
+  files    File[]
+
+  // Fast lookup of all folders belonging to a user
+  @@index([userId])
+  // Folder count check per user uses this
+  @@index([userId, parentId])
+  @@map("folders")
+}
+
+// ─────────────────────────────────────────────
+// FILES
+// ─────────────────────────────────────────────
+
+model File {
+  id String @id @default(uuid())
+
+  // What the user sees in the UI
+  originalName String @map("original_name")
+
+  // UUID filename on disk — user input never touches filesystem paths
+  storedName String @unique @map("stored_name")
+
+  mimeType String @map("mime_type")
+
+  // BigInt to support large files beyond 2GB in future
+  sizeBytes BigInt @map("size_bytes")
+
+  fileType FileType @map("file_type")
+
+  folder   Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId String @map("folder_id")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // No duplicate filenames within the same folder
+  @@unique([folderId, originalName])
+  // Fast file count checks per user and per folder
+  @@index([userId])
+  @@index([folderId])
+  @@map("files")
+}
