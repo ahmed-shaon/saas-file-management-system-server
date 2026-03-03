@@ -4,51 +4,34 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env'
 import { errorHandler } from './middlewares/errorHandler'
-import { generalRateLimiter } from './middlewares/rateLimiter'
+import { generalRateLimiter } from './middlewares/rateLimiter'  // ← correct name
 
-// ── Route Imports ──────────────────────────────
 import authRoutes from './modules/auth/auth.routes'
 import subscriptionRoutes from './modules/subscription/subscription.routes'
 import adminRoutes from './modules/admin/admin.routes'
-// Future phases will add more routes here
+import folderRoutes from './modules/folder/folder.routes'
+import fileRoutes from './modules/file/file.routes'             // ← Phase 6
 
 const app = express()
 
-// ─────────────────────────────────────────────
-// SECURITY MIDDLEWARE
-// Order matters — security headers must come first
-// ─────────────────────────────────────────────
-
+// ─── Security ────────────────────────────────
 app.use(helmet())
+app.use(cors({
+  origin: env.FRONTEND_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
 
-app.use(
-  cors({
-    origin: env.FRONTEND_URL,
-    credentials: true, // Required for cookies to be sent cross-origin
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-)
-
-// ─────────────────────────────────────────────
-// BODY PARSING
-// ─────────────────────────────────────────────
-
+// ─── Body parsing ─────────────────────────────
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser(env.COOKIE_SECRET))
 
-// ─────────────────────────────────────────────
-// GENERAL RATE LIMITING
-// Applied to all routes
-// ─────────────────────────────────────────────
+// ─── General rate limiter ─────────────────────
+app.use(generalRateLimiter)                                     // ← correct name
 
-app.use(generalRateLimiter)
-
-// ─────────────────────────────────────────────
-// HEALTH CHECK
-// ─────────────────────────────────────────────
-
+// ─── Health check ─────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
@@ -58,21 +41,14 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-// ─────────────────────────────────────────────
-// ROUTES
-// ─────────────────────────────────────────────
-
+// ─── Routes ───────────────────────────────────
 app.use('/api/auth', authRoutes)
 app.use('/api/subscriptions', subscriptionRoutes)
 app.use('/api/admin', adminRoutes)
-// Phase 5: app.use('/api/folders', folderRoutes)
-// Phase 6: app.use('/api/files', fileRoutes)
+app.use('/api/folders', folderRoutes)
+app.use('/api/files', fileRoutes)                               // ← Phase 6
 
-// ─────────────────────────────────────────────
-// 404 HANDLER
-// Catches requests to undefined routes
-// ─────────────────────────────────────────────
-
+// ─── 404 handler ──────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({
     success: false,
@@ -82,11 +58,7 @@ app.use((_req, res) => {
   })
 })
 
-// ─────────────────────────────────────────────
-// GLOBAL ERROR HANDLER
-// Must be registered last — after all routes
-// ─────────────────────────────────────────────
-
+// ─── Global error handler (must be last) ──────
 app.use(errorHandler)
 
 export default app
