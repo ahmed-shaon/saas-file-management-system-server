@@ -8,6 +8,8 @@ import { generalRateLimiter } from './middlewares/rateLimiter'
 
 // ── Route Imports ──────────────────────────────
 import authRoutes from './modules/auth/auth.routes'
+import subscriptionRoutes from './modules/subscription/subscription.routes'
+import adminRoutes from './modules/admin/admin.routes'
 // Future phases will add more routes here
 
 const app = express()
@@ -61,10 +63,10 @@ app.get('/api/health', (_req, res) => {
 // ─────────────────────────────────────────────
 
 app.use('/api/auth', authRoutes)
-// Phase 3: app.use('/api/subscriptions', subscriptionRoutes)
+app.use('/api/subscriptions', subscriptionRoutes)
+app.use('/api/admin', adminRoutes)
 // Phase 5: app.use('/api/folders', folderRoutes)
 // Phase 6: app.use('/api/files', fileRoutes)
-// Phase 7: app.use('/api/admin', adminRoutes)
 
 // ─────────────────────────────────────────────
 // 404 HANDLER
