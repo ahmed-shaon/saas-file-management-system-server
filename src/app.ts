@@ -4,35 +4,87 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import { env } from './config/env'
 import { errorHandler } from './middlewares/errorHandler'
+import { generalRateLimiter } from './middlewares/rateLimiter'
+
+// ── Route Imports ──────────────────────────────
+import authRoutes from './modules/auth/auth.routes'
+// Future phases will add more routes here
 
 const app = express()
 
-// Security middleware
-app.use(helmet())
-app.use(cors({
-  origin: env.FRONTEND_URL,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}))
+// ─────────────────────────────────────────────
+// SECURITY MIDDLEWARE
+// Order matters — security headers must come first
+// ─────────────────────────────────────────────
 
-// Body parsing
+app.use(helmet())
+
+app.use(
+  cors({
+    origin: env.FRONTEND_URL,
+    credentials: true, // Required for cookies to be sent cross-origin
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+)
+
+// ─────────────────────────────────────────────
+// BODY PARSING
+// ─────────────────────────────────────────────
+
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser(env.COOKIE_SECRET))
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
-    message: 'Server is running', 
-    timestamp: new Date().toISOString() 
+// ─────────────────────────────────────────────
+// GENERAL RATE LIMITING
+// Applied to all routes
+// ─────────────────────────────────────────────
+
+app.use(generalRateLimiter)
+
+// ─────────────────────────────────────────────
+// HEALTH CHECK
+// ─────────────────────────────────────────────
+
+app.get('/api/health', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+    environment: env.NODE_ENV,
   })
 })
 
-// Routes will be added here in later phases
+// ─────────────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────────────
 
-// Global error handler — must be last
+app.use('/api/auth', authRoutes)
+// Phase 3: app.use('/api/subscriptions', subscriptionRoutes)
+// Phase 5: app.use('/api/folders', folderRoutes)
+// Phase 6: app.use('/api/files', fileRoutes)
+// Phase 7: app.use('/api/admin', adminRoutes)
+
+// ─────────────────────────────────────────────
+// 404 HANDLER
+// Catches requests to undefined routes
+// ─────────────────────────────────────────────
+
+app.use((_req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found',
+    code: 'NOT_FOUND',
+    errors: null,
+  })
+})
+
+// ─────────────────────────────────────────────
+// GLOBAL ERROR HANDLER
+// Must be registered last — after all routes
+// ─────────────────────────────────────────────
+
 app.use(errorHandler)
 
 export default app

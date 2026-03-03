@@ -45,4 +45,11 @@ process.on('SIGTERM', async () => {
   process.exit(0)
 })
 
+// Also handle SIGINT (Ctrl+C in development)
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully')
+  await prisma.$disconnect()
+  process.exit(0)
+})
+
 startServer()
